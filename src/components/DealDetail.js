@@ -4,21 +4,76 @@ import {
   View,
   ScrollView,
   Image,
+  Button,
   Text,
   StyleSheet,
-  TouchableOpacity
+  TouchableOpacity,
+  PanResponder,
+  Animated,
+  Dimensions,
+  Linking
 } from "react-native";
 import { priceDisplay } from "../util";
 import ajax from "../ajax";
 
 export default class DealDetail extends Component {
+  imageXPos = new Animated.Value(0);
+
+  imagePanResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onPanResponderMove: (evt, gs) => {
+      this.imageXPos.setValue(gs.dx);
+    },
+    onPanResponderRelease: (evt, gs) => {
+      this.windowWidth = Dimensions.get("window").width;
+      if (Math.abs(gs.dx) > this.windowWidth * 0.4) {
+        // Swipe left of right
+        const direction = Math.sign(gs.dx);
+        console.log("Swipe left");
+        Animated.timing(this.imageXPos, {
+          toValue: direction * this.windowWidth,
+          duration: 250
+        }).start(() => {
+          this.handleSwipe(-1 * direction);
+        });
+      } else {
+        Animated.spring(this.imageXPos, {
+          toValue: 0
+        }).start();
+      }
+    }
+  });
+
+  handleSwipe = indexDirection => {
+    if (!this.state.deal.media[this.state.imageIndex + indexDirection]) {
+      Animated.spring(this.imageXPos, {
+        toValue: 0
+      }).start();
+      return;
+    }
+    this.setState(
+      prevState => ({
+        imageIndex: prevState.imageIndex + indexDirection
+      }),
+      () => {
+        // next image animation
+        this.imageXPos.setValue(this.windowWidth * indexDirection);
+        Animated.spring(this.imageXPos, {
+          toValue: 0,
+          duration: 250
+        }).start();
+      }
+    );
+  };
+
   static propTypes = {
     initialDealData: PropTypes.object.isRequired,
     onBackPress: PropTypes.func.isRequired
   };
 
   state = {
-    deal: this.props.initialDealData
+    deal: this.props.initialDealData,
+    imageIndex: 0
   };
 
   onBackPress = () => {
@@ -33,6 +88,10 @@ export default class DealDetail extends Component {
     this.setState({ deal: fulldeal });
   }
 
+  openDealUrl = () => {
+    Linking.openURL(this.state.deal.url);
+  };
+
   render() {
     const { deal } = this.state;
     return (
@@ -40,8 +99,12 @@ export default class DealDetail extends Component {
         <TouchableOpacity onPress={this.onBackPress}>
           <Text style={styles.backbutton}>Back</Text>
         </TouchableOpacity>
-        <Image source={{ uri: deal.media[0] }} style={styles.image} />
-        <View style={styles.textcontainer}>
+        <Animated.Image
+          {...this.imagePanResponder.panHandlers}
+          source={{ uri: deal.media[this.state.imageIndex] }}
+          style={[{ left: this.imageXPos }, styles.image]}
+        />
+        <View style={styles.textContainer}>
           <Text style={styles.title}>{deal.title}</Text>
           <View style={styles.footer}>
             <Text style={styles.cause}>{deal.cause.name}</Text>
@@ -49,10 +112,10 @@ export default class DealDetail extends Component {
           </View>
         </View>
         {deal.user && (
-          <View style={styles.usercontainer}>
+          <View style={styles.userContainer}>
             <Image
               source={{ uri: deal.user.avatar }}
-              style={styles.userimage}
+              style={styles.userImage}
             />
             <Text style={styles.username}>{deal.user.name}</Text>
           </View>
@@ -61,6 +124,9 @@ export default class DealDetail extends Component {
           <View>
             <Text style={styles.description}>{deal.description}</Text>
           </View>
+        )}
+        {deal.url && (
+          <Button title="Buy this deal!" onPress={this.openDealUrl} />
         )}
       </ScrollView>
     );
@@ -72,7 +138,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 150
   },
-  userimage: {
+  userImage: {
     width: 60,
     height: 60,
     borderRadius: 30,
@@ -83,26 +149,25 @@ const styles = StyleSheet.create({
   },
   container: {
     backgroundColor: "#fff",
-    padding: 5,
-    margin: 5,
-    marginTop: 50,
-    borderColor: "#ccc",
-    borderWidth: 1
+    marginTop: 30
   },
-  usercontainer: {
+  userContainer: {
     alignItems: "center",
     justifyContent: "center"
   },
-  textcontainer: {
-    padding: 5
+  textContainer: {
+    marginBottom: 5
   },
   footer: {
-    flexDirection: "row"
+    flexDirection: "row",
+    marginHorizontal: 5
   },
   title: {
     fontSize: 16,
     fontWeight: "bold",
-    marginBottom: 5
+    marginBottom: 5,
+    backgroundColor: "#eee",
+    padding: 5
   },
   cause: {
     flex: 2
@@ -115,6 +180,7 @@ const styles = StyleSheet.create({
     margin: 10
   },
   backbutton: {
+    marginLeft: 10,
     marginBottom: 10,
     color: "#22f"
   }

@@ -1,19 +1,27 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  Animated,
+  Easing,
+  Dimensions
+} from "react-native";
 import ajax from "./src/ajax";
 import DealList from "./src/components/DealList";
 import DealDetail from "./src/components/DealDetail";
 import SearchBar from "./src/components/SearchBar";
 
 export default class App extends React.Component {
+  titleXPos = new Animated.Value(0);
+
   state = {
     deals: [],
     dealsFromSearch: [],
     currentDealId: null
   };
-  searchDeals = async searchTerm => {
-    console.log("Search");
 
+  searchDeals = async searchTerm => {
     let dealsFromSearch = [];
     if (searchTerm) {
       dealsFromSearch = await ajax.fetchDealsSearchResult(searchTerm);
@@ -21,9 +29,23 @@ export default class App extends React.Component {
     console.log(dealsFromSearch);
     this.setState({ dealsFromSearch });
   };
+
+  animateTitle = (direction = 1) => {
+    const windowWidth = Dimensions.get("window").width - 160;
+    Animated.timing(this.titleXPos, {
+      toValue: direction * (windowWidth / 2),
+      duration: 1000,
+      easing: Easing.ease
+    }).start(({ finished }) => {
+      if (finished) {
+        this.animateTitle(direction * -1);
+      }
+    });
+  };
+
   async componentDidMount() {
+    this.animateTitle();
     const deals = await ajax.fetchInitialDeals();
-    console.log(deals);
     this.setState({ deals });
   }
 
@@ -66,9 +88,9 @@ export default class App extends React.Component {
       );
     } else {
       return (
-        <View style={styles.container}>
-          <Text style={styles.header}>Bakesale2</Text>
-        </View>
+        <Animated.View style={[{ left: this.titleXPos }, styles.container]}>
+          <Text style={styles.header}>Bakesale</Text>
+        </Animated.View>
       );
     }
   }
