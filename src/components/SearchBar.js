@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import { View, TextInput, StyleSheet } from "react-native";
 import PropTypes from "prop-types";
-import debounce from "lodash.debounce";
+import debounce from "lodash";
 
 export default class SearchBar extends Component {
   static propTypes = {
